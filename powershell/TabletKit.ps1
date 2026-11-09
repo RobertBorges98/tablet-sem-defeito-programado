@@ -314,9 +314,12 @@ function Invoke-Medir {
     $ant = @(Get-Registros $pasta 'medicoes.jsonl')
     Add-Registro $pasta 'medicoes.jsonl' $med
     Write-Host "  RAM livre: $(Format-GB $med.ram_livre_kb) | apps ativos: $($med.apps_ativos) | Configurações abriram em $($med.abrir_config_ms) ms"
-    if ($ant.Count) {
-        $p = $ant[0]
-        Write-Host "`nComparado com a 1ª medição ($($p.data) $($p.rotulo)):"
+    $marcadasAntes = @($ant | Where-Object { $_.rotulo -eq 'antes' })
+    if ($ant.Count -and $Rotulo -ne 'antes') {
+        # compara com a última medição "antes"; se não houver, com a primeira registrada
+        if ($marcadasAntes.Count) { $p = $marcadasAntes[-1]; $origem = "medição 'antes'" }
+        else { $p = $ant[0]; $origem = "1ª medição (nenhuma marcada como 'antes')" }
+        Write-Host "`nComparado com a $origem de $($p.data):"
         Write-Host "  RAM livre: $(Format-GB $p.ram_livre_kb) -> $(Format-GB $med.ram_livre_kb)"
         Write-Host "  Apps ativos: $($p.apps_ativos) -> $($med.apps_ativos)"
         if ($p.abrir_config_ms -and $med.abrir_config_ms) {

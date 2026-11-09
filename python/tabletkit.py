@@ -446,9 +446,12 @@ def cmd_medir(args) -> None:
     registrar(pasta, "medicoes.jsonl", med)
     print(f"  RAM livre: {kb_para_gb(med['ram_livre_kb'])} | apps ativos: {med['apps_ativos']} | "
           f"Configurações abriram em {med['abrir_config_ms']} ms")
-    if anteriores:
-        p = anteriores[0]
-        print(f"\nComparado com a 1ª medição ({p['data']}{' - ' + p['rotulo'] if p.get('rotulo') else ''}):")
+    marcadas_antes = [r for r in anteriores if r.get("rotulo") == "antes"]
+    if anteriores and med["rotulo"] != "antes":
+        # compara com a última medição "antes"; se não houver, com a primeira registrada
+        p = marcadas_antes[-1] if marcadas_antes else anteriores[0]
+        origem = "medição 'antes'" if marcadas_antes else "1ª medição (nenhuma marcada como 'antes')"
+        print(f"\nComparado com a {origem} de {p['data']}:")
         print(f"  RAM livre: {kb_para_gb(p['ram_livre_kb'])} → {kb_para_gb(med['ram_livre_kb'])}")
         print(f"  Apps ativos: {p['apps_ativos']} → {med['apps_ativos']}")
         if p.get("abrir_config_ms") and med["abrir_config_ms"]:

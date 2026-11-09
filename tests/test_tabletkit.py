@@ -132,9 +132,13 @@ class TestComAdbFalso(unittest.TestCase):
         self.assertEqual(estado["anim"], "1.0")
 
     def test_medir(self):
+        self.rodar("medir", "--rotulo", "depois")
         rc, saida = self.rodar("medir", "--rotulo", "antes")
         self.assertEqual(rc, 0)
         self.assertIn("850 ms", saida)
+        self.assertNotIn("Comparado", saida)
+        _, saida = self.rodar("medir", "--rotulo", "depois")
+        self.assertIn("medição 'antes'", saida)
 
 
 if __name__ == "__main__":
