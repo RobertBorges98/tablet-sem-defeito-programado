@@ -88,9 +88,23 @@ function Select-Aparelho {
 # ----------------------------------------------------------------- banco
 $Banco = Get-Content $BancoArq -Raw -Encoding UTF8 | ConvertFrom-Json
 $PorPacote = @{}; foreach ($p in $Banco.pacotes) { $PorPacote[$p.pacote] = $p }
+$PadroesOcultos = @(); if ($Banco.padroes_ocultos) { $PadroesOcultos = @($Banco.padroes_ocultos.contem) }
+$Componentes = @{}; $MotivoComponente = 'Componente do sistema.'
+if ($Banco.componentes_sistema) {
+    foreach ($c in $Banco.componentes_sistema.pacotes) { $Componentes[$c] = $true }
+    $MotivoComponente = $Banco.componentes_sistema.motivo
+}
+
+# Overlays/recursos não catalogados: não rodam nem gastam RAM, ficam fora do relatório.
+function Test-Oculto([string]$Nome) {
+    if ($PorPacote.ContainsKey($Nome)) { return $false }
+    foreach ($s in $script:PadroesOcultos) { if ($Nome.Contains($s)) { return $true } }
+    return $false
+}
 
 function Get-Classificacao([string]$Nome) {
     if ($PorPacote.ContainsKey($Nome)) { return $PorPacote[$Nome] }
+    if ($script:Componentes.ContainsKey($Nome)) { return [pscustomobject]@{ pacote = $Nome; nome = $Nome; categoria = 'essencial'; risco = 'perigoso'; motivo = $script:MotivoComponente } }
     foreach ($pre in $Banco.prefixos_perigosos) {
         if ($Nome.StartsWith($pre)) { return [pscustomobject]@{ pacote = $Nome; nome = $Nome; categoria = 'essencial'; risco = 'perigoso'; motivo = 'Componente do sistema (por prefixo).' } }
     }
@@ -214,7 +228,7 @@ function Get-Alertas($d) {
     $patch = "$($d.aparelho.patch_seguranca)"
     if ($patch.Length -ge 4 -and ((Get-Date).Year - [int]$patch.Substring(0, 4)) -ge 2) {
         $out += "- ℹ️ **Patch de segurança de $patch.** O fabricante parou de atualizar; cuidado com bancos e apps sensíveis." }
-    $sujos = @($d.iniciam_no_boot | Where-Object { $_.risco -eq 'seguro' -or @('propaganda', 'telemetria') -contains $_.categoria })
+    $sujos = @($d.iniciam_no_boot | Where-Object { @('propaganda', 'telemetria') -contains $_.categoria })
     if ($sujos.Count) { $out += "- ⚠️ **$($sujos.Count) apps de propaganda/telemetria iniciam junto com o tablet.**" }
     return $out
 }
@@ -228,18 +242,26 @@ function Invoke-Varrer {
     $removidos = @($todosU | Where-Object { -not $inst.Contains($_) } | Sort-Object)
 
     $cls = [ordered]@{ seguro = @(); cuidado = @(); perigoso = @(); verificar = @() }
+    $qtdOcultos = 0
     foreach ($p in ($ativos | Sort-Object)) {
         $c = Get-Classificacao $p
         $ehSistema = $sistema.Contains($p)
-        if ($c.risco -eq 'verificar' -and -not $ehSistema) { continue }
+        if ($c.risco -eq 'verificar') {
+            if (-not $ehSistema) { continue }                  # app de terceiro não catalogado
+            if (Test-Oculto $p) { $qtdOcultos++; continue }    # overlay/recurso
+        }
         $cls[$c.risco] += [pscustomobject]@{ pacote = $p; nome = $c.nome; categoria = $c.categoria; risco = $c.risco; motivo = $c.motivo; sistema = $ehSistema }
     }
-    $boot = @(Get-AppsBoot | ForEach-Object { $c = Get-Classificacao $_; [pscustomobject]@{ pacote = $_; risco = $c.risco; categoria = $c.categoria } })
+    $boot = @(Get-AppsBoot | Where-Object { $ativos.Contains($_) } | ForEach-Object {
+            $c = Get-Classificacao $_
+            [pscustomobject]@{ pacote = $_; terceiro = (-not $sistema.Contains($_)); risco = $c.risco; categoria = $c.categoria } })
+    $terceiros = @($ativos | Where-Object { -not $sistema.Contains($_) }).Count
 
     $d = [ordered]@{
         data = (Agora); aparelho = $info; memoria = (Get-Memoria); armazenamento = (Get-Armazenamento)
         bateria = (Get-Bateria); animacoes = (Get-Animacoes)
-        contagem = [ordered]@{ ativos = $ativos.Count; desativados = $desat.Count; sistema = $sistema.Count; removidos_usuario0 = $removidos.Count }
+        contagem = [ordered]@{ ativos = $ativos.Count; desativados = $desat.Count; sistema = $sistema.Count; terceiros = $terceiros
+            removidos_usuario0 = $removidos.Count; overlays_ocultos = $qtdOcultos }
         classificacao = $cls; iniciam_no_boot = $boot; maiores_consumidores_ram = @(Get-TopRam)
         ja_removidos = $removidos; desativados = @($desat | Sort-Object)
     }
@@ -254,8 +276,9 @@ function Invoke-Varrer {
     $L += '', '## Saúde', '', "- **RAM:** $(Format-GB $m.disponivel_kb) livres de $(Format-GB $m.total_kb)",
     "- **Armazenamento:** $(Format-GB $s.livre_kb) livres ($($s.uso_pct)% usado)",
     "- **Bateria:** $($b.nivel_pct)%, saúde $($b.saude), $($b.temperatura_c) °C",
-    "- **Animações:** $(($d.animacoes.Values) -join ' / ')",
-    "- **Pacotes:** $($d.contagem.ativos) ativos, $($d.contagem.desativados) desativados, $($d.contagem.removidos_usuario0) já removidos", ''
+    "- **Animações:** $(($d.animacoes.Values) -join ' / ') (janela / transição / duração)",
+    ("- **Pacotes:** {0} ativos ({1} do sistema, {2} de terceiros), {3} desativados, {4} já removidos, {5} overlays ocultos" -f `
+        $d.contagem.ativos, $d.contagem.sistema, $d.contagem.terceiros, $d.contagem.desativados, $d.contagem.removidos_usuario0, $d.contagem.overlays_ocultos), ''
     if ($alertas) { $L += '## Alertas', ''; $L += $alertas }
     $rot = [ordered]@{ seguro = '✅ Pode remover'; cuidado = '⚠️ Remover com cuidado'; verificar = '🔎 Apps do sistema não catalogados (pesquise antes)'; perigoso = '⛔ Essenciais (o kit não remove)' }
     foreach ($k in $rot.Keys) {
@@ -264,8 +287,12 @@ function Invoke-Varrer {
         $L += '| Pacote | Nome | Categoria | Motivo |', '|---|---|---|---|'
         foreach ($p in $cls[$k]) { $L += "| ``$($p.pacote)`` | $($p.nome) | $($p.categoria) | $($p.motivo) |" }
     }
-    $L += '', '## Apps que iniciam sozinhos ao ligar', ''
-    if ($boot.Count) { $L += @($boot | ForEach-Object { "- ``$($_.pacote)`` ($($_.risco))" }) } else { $L += '_nenhum_' }
+    $bootTer = @($boot | Where-Object { $_.terceiro }); $bootSis = @($boot | Where-Object { -not $_.terceiro })
+    $L += '', "## Apps de terceiros que iniciam sozinhos ao ligar — $($bootTer.Count)", '',
+    'Instalados por você, pela loja ou pré-carregados pelo fabricante. Desinstale pela Play Store os que não usa.', ''
+    if ($bootTer.Count) { $L += @($bootTer | ForEach-Object { if ($_.risco -ne 'verificar') { "- ``$($_.pacote)`` ($($_.risco))" } else { "- ``$($_.pacote)``" } }) } else { $L += '_nenhum_' }
+    $L += '', "## Apps do sistema que iniciam sozinhos ao ligar — $($bootSis.Count)", ''
+    if ($bootSis.Count) { $L += @($bootSis | ForEach-Object { "- ``$($_.pacote)`` ($($_.risco))" }) } else { $L += '_nenhum_' }
     $L += '', '## Maiores consumidores de RAM agora', ''
     if ($d.maiores_consumidores_ram.Count) { $L += @($d.maiores_consumidores_ram | ForEach-Object { "- ``$($_.pacote)`` — $($_.ram_mb) MB" }) } else { $L += '_não disponível_' }
     $L += '', '---', 'Próximo passo: `.\TabletKit.ps1 remover` (simulação) e depois `-Aplicar`.', ''

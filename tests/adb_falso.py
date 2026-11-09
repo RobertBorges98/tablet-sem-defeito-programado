@@ -11,7 +11,7 @@ PACOTES_INICIAIS = {
     "com.dti.samsung": True, "com.facebook.appmanager": True, "com.facebook.services": True,
     "com.samsung.android.game.gos": True, "com.wssyncmldm": True,
     "com.samsung.android.bixby.agent": True, "com.sec.unknown.vendorapp": True,
-    "com.whatsapp": True,
+    "com.whatsapp": True, "com.android.theme.icon.pebble": True,
 }
 USUARIO = {"com.whatsapp"}
 

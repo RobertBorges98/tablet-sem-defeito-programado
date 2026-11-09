@@ -119,10 +119,21 @@ class Banco:
         self.suspeitos = dados.get("padroes_suspeitos", [])
         self.prefixos_perigosos = dados.get("prefixos_perigosos", [])
         self.legenda_categoria = dados.get("legenda_categoria", {})
+        self.ocultos = dados.get("padroes_ocultos", {}).get("contem", [])
+        comp = dados.get("componentes_sistema", {})
+        self.componentes = set(comp.get("pacotes", []))
+        self.motivo_componente = comp.get("motivo", "Componente do sistema.")
+
+    def oculto(self, pacote: str) -> bool:
+        """Overlays/recursos não catalogados: não rodam nem gastam RAM, ficam fora do relatório."""
+        return pacote not in self.por_pacote and any(s in pacote for s in self.ocultos)
 
     def classificar(self, pacote: str) -> dict:
         if pacote in self.por_pacote:
             return self.por_pacote[pacote]
+        if pacote in self.componentes:
+            return {"pacote": pacote, "nome": pacote, "categoria": "essencial",
+                    "risco": "perigoso", "motivo": self.motivo_componente}
         for pre in self.prefixos_perigosos:
             if pacote.startswith(pre):
                 return {"pacote": pacote, "nome": pacote, "categoria": "essencial",
@@ -306,12 +317,16 @@ def cmd_varrer(args) -> None:
     removidos = todos_u - instalados
 
     classificados = {"seguro": [], "cuidado": [], "perigoso": [], "verificar": []}
+    ocultos = 0
     for p in sorted(ativos):
         c = dict(banco.classificar(p))
         c["sistema"] = p in sistema
-        # apps instalados pelo usuário e não catalogados não interessam
-        if c["risco"] == "verificar" and not c["sistema"]:
-            continue
+        if c["risco"] == "verificar":
+            if not c["sistema"]:      # app de terceiro não catalogado: escolha do usuário
+                continue
+            if banco.oculto(p):       # overlay/recurso: não roda, não gasta RAM
+                ocultos += 1
+                continue
         classificados[c["risco"]].append(c)
 
     boot = apps_que_iniciam_sozinhos(t)
@@ -319,10 +334,12 @@ def cmd_varrer(args) -> None:
         "data": agora(), "aparelho": info, "memoria": memoria(t),
         "armazenamento": armazenamento(t), "bateria": bateria(t), "animacoes": animacoes(t),
         "contagem": {"ativos": len(ativos), "desativados": len(desativados),
-                     "sistema": len(sistema), "removidos_usuario0": len(removidos)},
+                     "sistema": len(sistema), "terceiros": len(ativos - sistema),
+                     "removidos_usuario0": len(removidos), "overlays_ocultos": ocultos},
         "classificacao": classificados,
-        "iniciam_no_boot": [{"pacote": p, **{k: banco.classificar(p)[k] for k in ("risco", "categoria")}}
-                            for p in boot],
+        "iniciam_no_boot": [{"pacote": p, "terceiro": p not in sistema,
+                             **{k: banco.classificar(p)[k] for k in ("risco", "categoria")}}
+                            for p in boot if p in ativos],
         "maiores_consumidores_ram": maiores_consumidores_ram(t),
         "ja_removidos": sorted(removidos), "desativados": sorted(desativados),
     }
@@ -338,7 +355,7 @@ def cmd_varrer(args) -> None:
 
 def relatorio_markdown(d: dict, banco: Banco) -> str:
     a, m, s, b = d["aparelho"], d["memoria"], d["armazenamento"], d["bateria"]
-    c = d["classificacao"]
+    c, q = d["classificacao"], d["contagem"]
     L = [f"# Varredura — {a['fabricante']} {a['modelo']}", "",
          f"Data: {d['data']}", "", "## Aparelho", "",
          "| Item | Valor |", "|---|---|"]
@@ -350,8 +367,10 @@ def relatorio_markdown(d: dict, banco: Banco) -> str:
           f"- **Armazenamento:** {kb_para_gb(s.get('livre_kb', 0))} livres "
           f"({s.get('uso_pct', '?')}% usado)" + ("  ⚠️ acima de 85% deixa o tablet lento" if s.get("uso_pct", 0) > 85 else ""),
           f"- **Bateria:** {b['nivel_pct']}%, saúde {b['saude']}, {b['temperatura_c']} °C",
-          f"- **Animações:** {d['animacoes']}",
-          f"- **Pacotes:** {d['contagem']}", ""]
+          f"- **Animações:** {' / '.join(d['animacoes'].values())} (janela / transição / duração)",
+          f"- **Pacotes:** {q['ativos']} ativos ({q['sistema']} do sistema, {q['terceiros']} de terceiros), "
+          f"{q['desativados']} desativados, {q['removidos_usuario0']} já removidos, "
+          f"{q['overlays_ocultos']} overlays ocultos", ""]
     L += alertas(d)
     rotulos = [("seguro", "✅ Pode remover"), ("cuidado", "⚠️ Remover com cuidado"),
                ("verificar", "🔎 Apps do sistema não catalogados (pesquise antes)"),
@@ -364,8 +383,13 @@ def relatorio_markdown(d: dict, banco: Banco) -> str:
         L += ["| Pacote | Nome | Categoria | Motivo |", "|---|---|---|---|"]
         for p in c[chave]:
             L.append(f"| `{p['pacote']}` | {p['nome']} | {p['categoria']} | {p['motivo']} |")
-    L += ["", "## Apps que iniciam sozinhos ao ligar", ""]
-    L += [f"- `{x['pacote']}` ({x['risco']})" for x in d["iniciam_no_boot"]] or ["_nenhum_"]
+    boot_sis = [x for x in d["iniciam_no_boot"] if not x["terceiro"]]
+    boot_ter = [x for x in d["iniciam_no_boot"] if x["terceiro"]]
+    L += ["", f"## Apps de terceiros que iniciam sozinhos ao ligar — {len(boot_ter)}", "",
+          "Instalados por você, pela loja ou pré-carregados pelo fabricante. Desinstale pela Play Store os que não usa.", ""]
+    L += [f"- `{x['pacote']}`" + (f" ({x['risco']})" if x["risco"] != "verificar" else "") for x in boot_ter] or ["_nenhum_"]
+    L += ["", f"## Apps do sistema que iniciam sozinhos ao ligar — {len(boot_sis)}", ""]
+    L += [f"- `{x['pacote']}` ({x['risco']})" for x in boot_sis] or ["_nenhum_"]
     L += ["", "## Maiores consumidores de RAM agora", ""]
     L += [f"- `{x['pacote']}` — {x['ram_mb']} MB" for x in d["maiores_consumidores_ram"]] or ["_não disponível_"]
     L += ["", "---", "Próximo passo: `python tabletkit.py remover` (simulação) e depois `--aplicar`.", ""]
@@ -395,7 +419,7 @@ def alertas(d: dict) -> list[str]:
                        "cuidado com bancos e apps sensíveis.")
     except ValueError:
         pass
-    sujos = [x["pacote"] for x in d["iniciam_no_boot"] if x["risco"] in ("seguro",) or x["categoria"] in ("propaganda", "telemetria")]
+    sujos = [x["pacote"] for x in d["iniciam_no_boot"] if x["categoria"] in ("propaganda", "telemetria")]
     if sujos:
         out.append(f"- ⚠️ **{len(sujos)} apps de propaganda/telemetria iniciam junto com o tablet.**")
     return (["## Alertas", ""] + out) if out else []

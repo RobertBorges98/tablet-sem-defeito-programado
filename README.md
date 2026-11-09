@@ -80,6 +80,14 @@ A varredura gera um relatório em `relatorios/<modelo>_<serial>/varredura-<data>
 
 ---
 
+## Aparelhos já varridos
+
+| Aparelho | Android | Processador | Observações |
+|---|---|---|---|
+| Positivo Vaio TL10 | 13 | Unisoc (ums9230) | Pacotes da Positivo (`com.dr.positivo.preload`, `com.positivo.fota`) e ferramentas de fábrica Unisoc (`com.sprd.*`) catalogados |
+
+Varreu outro modelo? Abra uma issue ou um pull request com os pacotes novos. Envie só os nomes dos pacotes do sistema, **nunca o relatório inteiro**: ele tem o serial do aparelho e a lista dos seus apps.
+
 ## Deu problema?
 
 - **Um app sumiu e faz falta:** `reverter --pacote NOME`, ou `reverter --tudo`.

@@ -40,6 +40,11 @@ class TestBanco(unittest.TestCase):
         self.assertEqual(b.classificar("com.android.providers.media")["risco"], "perigoso")
         self.assertEqual(b.classificar("com.dti.outro")["categoria"], "suspeito")
         self.assertEqual(b.classificar("com.qualquer.coisa")["risco"], "verificar")
+        self.assertEqual(b.classificar("com.android.vpndialogs")["risco"], "perigoso")
+
+    def test_componentes_nao_duplicam_pacotes(self):
+        comp = set(self.dados["componentes_sistema"]["pacotes"])
+        self.assertFalse(comp & {p["pacote"] for p in self.dados["pacotes"]})
 
 
 class TestComAdbFalso(unittest.TestCase):
@@ -81,7 +86,18 @@ class TestComAdbFalso(unittest.TestCase):
         self.assertIn("com.dti.samsung", texto)
         self.assertIn("Game Optimizing Service ativo", texto)
         self.assertIn("Armazenamento quase cheio", texto)
-        self.assertNotIn("com.whatsapp`", texto.split("## Apps que iniciam")[0])
+        antes_boot, boot = texto.split("## Apps de terceiros que iniciam")
+        self.assertNotIn("com.whatsapp", antes_boot)
+        self.assertIn("com.whatsapp", boot.split("## Apps do sistema")[0])
+        self.assertNotIn("theme.icon.pebble", texto)
+        self.assertIn("1 overlays ocultos", texto)
+        self.assertIn("1 apps de propaganda/telemetria", texto)
+
+    def test_oculto(self):
+        b = tabletkit.Banco()
+        self.assertTrue(b.oculto("com.android.systemui.revo.overlay"))
+        self.assertTrue(b.oculto("com.android.wifi.resources"))
+        self.assertFalse(b.oculto("com.dr.positivo.preload"))
 
     def test_remover_simula_por_padrao(self):
         rc, saida = self.rodar("remover")
