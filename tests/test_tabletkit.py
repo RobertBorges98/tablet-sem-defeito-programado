@@ -125,6 +125,17 @@ class TestComAdbFalso(unittest.TestCase):
         self.rodar("reverter", "--pacote", "com.samsung.android.game.gos")
         self.assertTrue(self.estado()["com.samsung.android.game.gos"])
 
+    def test_reverter_usa_estado_real(self):
+        """Reverter de novo um app que voltou a ficar desativado (o histórico diz 'já revertido')."""
+        gos = "com.samsung.android.game.gos"
+        self.rodar("remover", "--pacote", gos, "--modo", "desativar", "--aplicar", "--sim")
+        self.rodar("reverter", "--tudo")
+        caminho = Path(os.environ["ADB_FALSO_ESTADO"])
+        e = json.loads(caminho.read_text()); e["instalado"][gos] = "off"; caminho.write_text(json.dumps(e))
+        _, saida = self.rodar("reverter", "--pacote", gos)
+        self.assertIn("✔", saida)
+        self.assertTrue(self.estado()[gos])
+
     def test_otimizar_e_restaurar(self):
         self.rodar("otimizar", "--aplicar", "--sem-compilar")
         self.rodar("restaurar-otimizacoes")

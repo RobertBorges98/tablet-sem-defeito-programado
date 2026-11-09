@@ -544,17 +544,17 @@ def cmd_reverter(args) -> None:
         return
 
     for p in alvo:
-        modo = pendentes.get(p, {}).get("modo", "desinstalar")
-        if modo == "desativar":
-            saida = t.shell(f"pm enable {p}")
-            sucesso = "enabled" in saida.lower()
-        else:
+        # olha o estado real do app em vez de depender do histórico
+        saida = ""
+        if p not in t.pacotes():                       # removido do usuário 0
             saida = t.shell(f"cmd package install-existing {p}")
             if "installed" not in saida.lower():
                 saida = t.shell(f"pm install-existing {p}")
-            sucesso = "installed" in saida.lower()
-        registrar(pasta, "acoes.jsonl", {"acao": "reverter", "modo": modo, "pacote": p,
-                                         "sucesso": sucesso, "saida": saida[:200]})
+        if p in t.pacotes("-d"):                       # desativado
+            saida += " " + t.shell(f"pm enable --user 0 {p}")
+        sucesso = p in t.pacotes("-e")
+        registrar(pasta, "acoes.jsonl", {"acao": "reverter", "pacote": p,
+                                         "sucesso": sucesso, "saida": saida.strip()[:200]})
         print(f"  {'✔' if sucesso else '✘'} {p}" + ("" if sucesso else f"  ({saida[:120]})"))
 
 

@@ -384,14 +384,16 @@ function Invoke-Reverter {
     }
     if (-not $alvo.Count) { Write-Host 'Nada para reverter.'; return }
     foreach ($p in $alvo) {
-        $modoP = if ($pend.ContainsKey($p)) { $pend[$p].modo } else { 'desinstalar' }
-        if ($modoP -eq 'desativar') { $s = Invoke-Shell "pm enable $p"; $suc = $s -match 'enabled' }
-        else {
+        # olha o estado real do app em vez de depender do histórico
+        $s = ''
+        if (-not (Get-Pacotes '').Contains($p)) {               # removido do usuário 0
             $s = Invoke-Shell "cmd package install-existing $p"
             if ($s -notmatch 'installed') { $s = Invoke-Shell "pm install-existing $p" }
-            $suc = $s -match 'installed'
         }
-        Add-Registro $pasta 'acoes.jsonl' @{ acao = 'reverter'; modo = $modoP; pacote = $p; sucesso = [bool]$suc; saida = $s.Substring(0, [math]::Min(200, $s.Length)) }
+        if ((Get-Pacotes '-d').Contains($p)) { $s += ' ' + (Invoke-Shell "pm enable --user 0 $p") }   # desativado
+        $s = $s.Trim()
+        $suc = (Get-Pacotes '-e').Contains($p)
+        Add-Registro $pasta 'acoes.jsonl' @{ acao = 'reverter'; pacote = $p; sucesso = [bool]$suc; saida = $s.Substring(0, [math]::Min(200, $s.Length)) }
         if ($suc) { Write-Host "  OK $p" -ForegroundColor Green } else { Write-Host "  FALHOU $p ($s)" -ForegroundColor Red }
     }
 }
