@@ -176,7 +176,30 @@
     {"pacote": "com.android.stk", "nome": "Ferramentas do chip (SIM Toolkit)", "fabricante": "Android", "categoria": "bloatware", "risco": "cuidado", "motivo": "Menu da operadora. Remova só se o tablet não usa chip."},
     {"pacote": "com.android.dynsystem", "nome": "Dynamic System Updates", "fabricante": "Android", "categoria": "bloatware", "risco": "cuidado", "motivo": "Ferramenta de desenvolvedor para testar outras versões do Android."},
     {"pacote": "com.android.cellbroadcastreceiver", "nome": "Alertas de emergência", "fabricante": "Android", "categoria": "essencial", "risco": "perigoso", "motivo": "Alertas da Defesa Civil."},
-    {"pacote": "com.google.android.cellbroadcastreceiver", "nome": "Alertas de emergência", "fabricante": "Google", "categoria": "essencial", "risco": "perigoso", "motivo": "Alertas da Defesa Civil."}
+    {"pacote": "com.google.android.cellbroadcastreceiver", "nome": "Alertas de emergência", "fabricante": "Google", "categoria": "essencial", "risco": "perigoso", "motivo": "Alertas da Defesa Civil."},
+
+    {"pacote": "com.google.android.gms.supervision", "nome": "Supervisão (Family Link)", "fabricante": "Google", "categoria": "essencial", "risco": "perigoso", "motivo": "Controle parental do Family Link. Sem ele os limites e filtros param de funcionar."},
+    {"pacote": "com.google.android.apps.kids.familylinkhelper", "nome": "Family Link (ajudante)", "fabricante": "Google", "categoria": "essencial", "risco": "perigoso", "motivo": "Parte do controle parental do Family Link."},
+    {"pacote": "com.google.android.apps.kids.home", "nome": "Espaço Kids", "fabricante": "Google", "categoria": "bloatware", "risco": "cuidado", "motivo": "Tela inicial infantil do Google. Mantenha se a criança usa."},
+
+    {"pacote": "br.com.multilaser.lsitec.uai", "nome": "UAI (Multilaser)", "fabricante": "Multilaser", "categoria": "telemetria", "risco": "seguro", "motivo": "Coleta localização exata, uso de apps e lista de apps, e inicia sozinho. Não é necessário."},
+    {"pacote": "br.com.multilaser.lsitec.sellout", "nome": "Sellout (Multilaser)", "fabricante": "Multilaser", "categoria": "telemetria", "risco": "seguro", "motivo": "Registra venda/ativação com localização e inicia sozinho."},
+    {"pacote": "br.com.multilaser.multifeedback", "nome": "Multifeedback (Multilaser)", "fabricante": "Multilaser", "categoria": "bloatware", "risco": "seguro", "motivo": "App de pesquisas de satisfação."},
+    {"pacote": "penseavanti.com.br.app2shop_multilaser", "nome": "App2Shop (Multilaser)", "fabricante": "Multilaser", "categoria": "propaganda", "risco": "seguro", "motivo": "Loja/ofertas pré-instalada que inicia sozinha."},
+    {"pacote": "android.autoinstalls.config.oem.multilaser", "nome": "Auto-instalação (Multilaser)", "fabricante": "Multilaser", "categoria": "propaganda", "risco": "cuidado", "motivo": "Lista de apps de parceiros que a Play Store instala sozinha. Use --modo desativar."},
+    {"pacote": "com.djgd.agingtest", "nome": "Teste de envelhecimento (fábrica)", "fabricante": "Multilaser", "categoria": "bloatware", "risco": "cuidado", "motivo": "Teste de fábrica que inicia com o sistema. Use --modo desativar."},
+    {"pacote": "com.djgd.testmode", "nome": "Modo de teste (fábrica)", "fabricante": "Multilaser", "categoria": "bloatware", "risco": "cuidado", "motivo": "Menu de testes de fábrica. Use --modo desativar."},
+    {"pacote": "com.clock.pt1.keeptesting", "nome": "Keep Testing (fábrica)", "fabricante": "Multilaser", "categoria": "bloatware", "risco": "cuidado", "motivo": "Teste de fábrica que inicia com o sistema. Use --modo desativar."},
+    {"pacote": "com.softwinner.runin", "nome": "Run-in (Allwinner)", "fabricante": "Allwinner", "categoria": "bloatware", "risco": "cuidado", "motivo": "Teste de fábrica que inicia com o sistema. Use --modo desativar."},
+    {"pacote": "com.softwinner.dragonatt", "nome": "DragonATT (Allwinner)", "fabricante": "Allwinner", "categoria": "bloatware", "risco": "cuidado", "motivo": "Teste de fábrica que inicia com o sistema. Use --modo desativar."},
+    {"pacote": "com.softwinner.awlogsettings", "nome": "Log Settings (Allwinner)", "fabricante": "Allwinner", "categoria": "telemetria", "risco": "cuidado", "motivo": "Ferramenta de logs de fábrica. Use --modo desativar."},
+    {"pacote": "com.softwinner.update", "nome": "Atualização do sistema (Allwinner)", "fabricante": "Allwinner", "categoria": "atualizacao", "risco": "cuidado", "motivo": "Baixa atualizações do sistema. Sem ele o tablet não recebe mais correções de segurança."},
+    {"pacote": "com.softwinner.timerswitch", "nome": "Ligar/desligar programado", "fabricante": "Allwinner", "categoria": "bloatware", "risco": "cuidado", "motivo": "Agenda horários para ligar e desligar o tablet."},
+    {"pacote": "com.softwinner.camera", "nome": "Câmera (Allwinner)", "fabricante": "Allwinner", "categoria": "bloatware", "risco": "cuidado", "motivo": "Pode ser o único app de câmera."},
+    {"pacote": "com.softwinner.qrscanner", "nome": "Leitor de QR Code (Allwinner)", "fabricante": "Allwinner", "categoria": "bloatware", "risco": "seguro", "motivo": "Leitor de QR Code simples."},
+    {"pacote": "com.google.android.apps.assistant", "nome": "Google Assistente Go", "fabricante": "Google", "categoria": "bloatware", "risco": "cuidado", "motivo": "Assistente de voz da versão Go. Inicia sozinho e pesa em aparelho com pouca RAM."},
+    {"pacote": "com.google.android.apps.searchlite", "nome": "Google Go", "fabricante": "Google", "categoria": "bloatware", "risco": "cuidado", "motivo": "Busca da versão Go. Remova se ninguém pesquisa pelo tablet."},
+    {"pacote": "com.google.android.apps.photosgo", "nome": "Galeria (Google Go)", "fabricante": "Google", "categoria": "bloatware", "risco": "cuidado", "motivo": "Pode ser a única galeria."}
   ],
   "prefixos_perigosos": [
     "com.android.providers.",
@@ -217,11 +240,17 @@
       "com.android.wifi.unidialog", "com.android.wifi.uniresources", "com.android.wifi.uniresources.marlin3",
       "com.google.android.onetimeinitializer", "com.google.android.signature", "com.revo.customization.monet",
       "com.sprd.providers.photos", "com.spreadtrum.proxy.nfwlocation", "com.spreadtrum.sgps",
-      "com.unisoc.networksliceserver", "com.unisoc.silent.reboot", "com.unisoc.tui"
+      "com.unisoc.networksliceserver", "com.unisoc.silent.reboot", "com.unisoc.tui",
+      "com.allwinnertech.packageoverride", "com.android.calculator2", "com.android.statementservice",
+      "com.android.storagemanager", "com.google.android.go.captiveportallogin", "com.google.android.go.documentsui",
+      "com.google.android.go.networkstack", "com.google.android.go.networkstackconfig",
+      "com.google.android.nearby.halfsheet", "com.google.android.tag", "com.softwinner.android.gmsintegration",
+      "com.softwinner.awmanager", "com.softwinner.awsysteminfo", "com.softwinner.runin.res",
+      "com.softwinner.screenshot", "com.softwinner.settingssetup"
     ]
   },
   "padroes_ocultos": {
     "motivo": "Overlays e pacotes de recursos: não rodam sozinhos e não gastam RAM. Ficam fora da lista para não poluir o relatório.",
-    "contem": [".overlay", "overlay.", "auto_generated_rro", ".resources", "com.android.internal.", "com.android.theme."]
+    "contem": [".overlay", "overlay.", "auto_generated_rro", ".resources", "com.android.internal.", "com.android.theme.", ".theme.icon.", ".theme.color"]
   }
 }

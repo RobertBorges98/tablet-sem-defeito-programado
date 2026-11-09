@@ -404,6 +404,9 @@ def alertas(d: dict) -> list[str]:
     out = []
     a, s, b = d["aparelho"], d["armazenamento"], d["bateria"]
     ativos = {p["pacote"] for lista in d["classificacao"].values() for p in lista}
+    if "com.google.android.gms.supervision" in ativos or "com.google.android.apps.kids.familylinkhelper" in ativos:
+        out.append("- 👶 **Tablet com controle parental (Family Link).** Não remova o Bem-estar digital "
+                   "(`com.google.android.apps.wellbeing`) nem o Espaço Kids, se a criança usa: os limites de tempo e os filtros dependem deles.")
     if "com.samsung.android.game.gos" in ativos:
         out.append("- ⚠️ **Game Optimizing Service ativo:** limita o desempenho de jogos e apps pesados.")
     if ativos & {"com.wssyncmldm", "com.sec.android.soagent"}:

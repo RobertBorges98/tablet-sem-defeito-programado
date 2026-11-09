@@ -90,7 +90,8 @@ A varredura gera um relatório em `relatorios/<modelo>_<serial>/varredura-<data>
 
 | Aparelho | Android | Processador | Observações |
 |---|---|---|---|
-| Positivo Vaio TL10 | 13 | Unisoc (ums9230) | Pacotes da Positivo (`com.dr.positivo.preload`, `com.positivo.fota`) e ferramentas de fábrica Unisoc (`com.sprd.*`) catalogados |
+| Positivo Vaio TL10 | 13 | Unisoc (ums9230) | Pacotes da Positivo (`com.dr.positivo.preload`, `com.positivo.fota`) e ferramentas de fábrica Unisoc (`com.sprd.*`) catalogados. 4 apps com APK corrompido encontrados pelo `integridade` |
+| Multilaser M7 Wi-Fi | 13 (Go) | Allwinner (ceres), 32 bits, 2 GB | Testes de fábrica que iniciam sozinhos (`com.djgd.*`, `com.softwinner.runin`, `dragonatt`), apps Multilaser que coletam localização e uso (`lsitec.uai`, `lsitec.sellout`) e loja pré-instalada (`app2shop`) catalogados |
 
 Varreu outro modelo? Abra uma issue ou um pull request com os pacotes novos. Envie só os nomes dos pacotes do sistema, **nunca o relatório inteiro**: ele tem o serial do aparelho e a lista dos seus apps.
 

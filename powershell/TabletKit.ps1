@@ -223,6 +223,8 @@ function Invoke-Verificar {
 function Get-Alertas($d) {
     $out = @()
     $ativos = @(); foreach ($k in 'seguro', 'cuidado', 'perigoso', 'verificar') { $ativos += @($d.classificacao[$k] | ForEach-Object { $_.pacote }) }
+    if ($ativos -contains 'com.google.android.gms.supervision' -or $ativos -contains 'com.google.android.apps.kids.familylinkhelper') {
+        $out += '- 👶 **Tablet com controle parental (Family Link).** Não remova o Bem-estar digital (`com.google.android.apps.wellbeing`) nem o Espaço Kids, se a criança usa: os limites de tempo e os filtros dependem deles.' }
     if ($ativos -contains 'com.samsung.android.game.gos') { $out += '- ⚠️ **Game Optimizing Service ativo:** limita o desempenho de jogos e apps pesados.' }
     if ($ativos -contains 'com.wssyncmldm' -or $ativos -contains 'com.sec.android.soagent') {
         $out += '- ℹ️ **Atualizações automáticas ativas.** Em tablets antigos, versões novas podem pesar mais. Bloquear atualizações também bloqueia correções de segurança: decida com cuidado.' }
