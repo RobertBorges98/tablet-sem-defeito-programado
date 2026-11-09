@@ -65,6 +65,9 @@ Para instalar o ADB:
 | **Desfazer tudo** | `... reverter --tudo` | `... reverter -Tudo` |
 | Voltar as animações | `... restaurar-otimizacoes` | `... restaurar-otimizacoes` |
 | Reiniciar o tablet | `... reiniciar` | `... reiniciar` |
+| **Apps que fecham sozinhos** ("o app parou") | `... falhas` | `... falhas` |
+| Conferir se os apps estão corrompidos | `... integridade` | `... integridade` |
+| Consertar app do sistema corrompido | `... reparar --pacote APP --aplicar` | `... reparar -Pacote APP -Aplicar` |
 
 > No Windows, o `instalar-adb.ps1` guarda o ADB em `platform-tools\`, dentro do projeto, sem mexer no PATH. O kit já sabe onde ele está. Para usar o ADB direto, digite `.\platform-tools\adb.exe` (por exemplo, `.\platform-tools\adb.exe devices`), e não só `adb`.
 

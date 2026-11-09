@@ -1,6 +1,7 @@
 import io
 import json
 import os
+import re
 import sys
 import tempfile
 import unittest
@@ -136,6 +137,30 @@ class TestComAdbFalso(unittest.TestCase):
         _, saida = self.rodar("reverter", "--pacote", gos)
         self.assertIn("✔", saida)
         self.assertTrue(self.estado()[gos])
+
+    def test_falhas_e_reparar(self):
+        _, saida = self.rodar("falhas")
+        self.assertIn("com.google.android.dialer", saida)
+        self.assertIn("NoClassDefFoundError", saida)
+        sugestao = re.search(r"integridade --pacote (.+)", saida).group(1).split()
+        self.assertEqual(sorted(sugestao), ["com.google.android.dialer", "com.truecaller"])
+
+    def test_integridade_e_reparar(self):
+        _, saida = self.rodar("integridade")
+        self.assertIn("Conferindo 3 arquivos", saida)
+        self.assertIn("com.truecaller — base.apk: CRC inválido em classes.dex", saida)
+        self.assertIn("com.google.android.dialer — base.apk: CRC inválido", saida)
+        self.assertNotIn("com.whatsapp —", saida)
+        self.assertIn("reparar --pacote com.google.android.dialer --aplicar", saida)   # do sistema
+        self.assertIn("• com.truecaller", saida)                                       # baixado
+        _, saida = self.rodar("reparar", "--pacote", "com.google.android.dialer", "com.truecaller")
+        self.assertIn("SIMULAÇÃO", saida)
+        self.assertIn("com.truecaller: app baixado da loja", saida)
+        self.rodar("reparar", "--pacote", "com.google.android.dialer", "com.truecaller", "--aplicar")
+        e = json.loads(Path(os.environ["ADB_FALSO_ESTADO"]).read_text())
+        self.assertEqual(e.get("reparados"), ["com.google.android.dialer"])
+        _, saida = self.rodar("integridade", "--pacote", "com.google.android.dialer")
+        self.assertIn("Conferindo 0 arquivos", saida)
 
     def test_otimizar_e_restaurar(self):
         self.rodar("otimizar", "--aplicar", "--sem-compilar")

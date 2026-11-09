@@ -22,7 +22,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0, Mandatory = $true)]
-    [ValidateSet('verificar', 'varrer', 'medir', 'remover', 'reverter', 'otimizar', 'restaurar-otimizacoes', 'reiniciar')]
+    [ValidateSet('verificar', 'varrer', 'medir', 'remover', 'reverter', 'otimizar', 'restaurar-otimizacoes', 'reiniciar', 'falhas', 'integridade', 'reparar')]
     [string]$Acao,
     [string]$Serial,
     [ValidateSet('seguro', 'cuidado')][string]$Risco = 'seguro',
@@ -39,6 +39,9 @@ param(
 
 $ErrorActionPreference = 'Stop'
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
+# "powershell -File" entrega "a,b" como um texto só: separa as vírgulas
+if ($Pacote) { $Pacote = @($Pacote | ForEach-Object { $_ -split ',' } | Where-Object { $_ }) }
+if ($Categoria) { $Categoria = @($Categoria | ForEach-Object { $_ -split ',' } | Where-Object { $_ }) }
 $Raiz = Split-Path -Parent $PSScriptRoot
 $BancoArq = Join-Path $Raiz 'dados\pacotes.json'
 $PastaRelatorios = Join-Path $Raiz 'relatorios'
@@ -55,6 +58,8 @@ function Find-Adb {
 $Adb = $null
 
 function Invoke-Adb([string[]]$Argumentos) {
+    # mensagens do adb na saída de erro (stderr) não devem derrubar o script
+    $ErrorActionPreference = 'Continue'
     $base = @(); if ($script:Serial) { $base = @('-s', $script:Serial) }
     $saida = & $Adb @($base + $Argumentos) 2>&1 | ForEach-Object { "$_" }
     return ($saida -join "`n")
@@ -426,6 +431,167 @@ function Invoke-RestaurarOtimizacoes {
     Write-Host 'OK Animações restauradas. (Cache limpo e compilação não precisam ser desfeitos.)' -ForegroundColor Green
 }
 
+$CausasDeCodigo = 'ClassNotFoundException', 'NoClassDefFoundError', 'VerifyError', 'UnsatisfiedLinkError', 'IncompatibleClassChangeError'
+
+function Get-Falhas {
+    # Lê as falhas guardadas pelo Android (DropBox): data, app e causa.
+    $saida = Invoke-Shell 'dumpsys dropbox --print data_app_crash; dumpsys dropbox --print system_app_crash'
+    $falhas = @(); $atual = $null
+    foreach ($l in $saida -split "`n") {
+        if ($l -match '^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) (data|system)_app_crash') {
+            $atual = [pscustomobject]@{ data = $Matches[1]; pacote = $null; causa = $null; codigo = $false }; $falhas += $atual; continue
+        }
+        if (-not $atual) { continue }
+        foreach ($c in $CausasDeCodigo) { if ($l.Contains($c)) { $atual.codigo = $true; break } }   # vale também para "Caused by"
+        if (-not $atual.pacote -and $l -match '^Process: (\S+)') { $atual.pacote = ($Matches[1] -split ':')[0] }
+        elseif (-not $atual.causa -and $l -match '^[\w.$]+(Exception|Error)\b') { $atual.causa = $l.Trim().Substring(0, [math]::Min(160, $l.Trim().Length)) }
+    }
+    return @($falhas | Where-Object { $_.pacote })
+}
+
+$CodigoVerificaApk = @'
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.IO.Compression;
+using System.Text;
+
+public static class VerificaApk {
+    static readonly uint[] Tabela = CriarTabela();
+    static uint[] CriarTabela() {
+        var t = new uint[256];
+        for (uint i = 0; i < 256; i++) { uint c = i; for (int k = 0; k < 8; k++) c = (c & 1) != 0 ? 0xEDB88320u ^ (c >> 1) : c >> 1; t[i] = c; }
+        return t;
+    }
+    // CRC esperado de cada arquivo, lido do diretório central do zip
+    static Dictionary<string, uint> CrcEsperados(string caminho) {
+        var r = new Dictionary<string, uint>();
+        byte[] b = File.ReadAllBytes(caminho);
+        int eocd = -1;
+        for (int i = b.Length - 22; i >= Math.Max(0, b.Length - 65557); i--)
+            if (BitConverter.ToUInt32(b, i) == 0x06054b50) { eocd = i; break; }
+        if (eocd < 0) throw new InvalidDataException("fim do diretório do zip não encontrado");
+        int n = BitConverter.ToUInt16(b, eocd + 10);
+        long pos = BitConverter.ToUInt32(b, eocd + 16);
+        for (int e = 0; e < n; e++) {
+            if (pos + 46 > b.Length || BitConverter.ToUInt32(b, (int)pos) != 0x02014b50) throw new InvalidDataException("diretório do zip danificado");
+            uint crc = BitConverter.ToUInt32(b, (int)pos + 16);
+            int lNome = BitConverter.ToUInt16(b, (int)pos + 28), lExtra = BitConverter.ToUInt16(b, (int)pos + 30), lCom = BitConverter.ToUInt16(b, (int)pos + 32);
+            r[Encoding.UTF8.GetString(b, (int)pos + 46, lNome)] = crc;
+            pos += 46 + lNome + lExtra + lCom;
+        }
+        return r;
+    }
+    // null = íntegro; senão, o problema encontrado
+    public static string Verificar(string caminho) {
+        try {
+            var esperados = CrcEsperados(caminho);
+            var buf = new byte[81920];
+            using (var z = ZipFile.OpenRead(caminho)) {
+                foreach (var ent in z.Entries) {
+                    uint c = 0xFFFFFFFFu; int lidos;
+                    using (var s = ent.Open()) while ((lidos = s.Read(buf, 0, buf.Length)) > 0) for (int i = 0; i < lidos; i++) c = Tabela[(c ^ buf[i]) & 0xFF] ^ (c >> 8);
+                    c ^= 0xFFFFFFFFu;
+                    uint esp;
+                    if (esperados.TryGetValue(ent.FullName, out esp) && esp != c) return "CRC inválido em " + ent.FullName;
+                }
+            }
+            return null;
+        } catch (Exception e) { return (e.GetType().Name + ": " + e.Message); }
+    }
+}
+'@
+
+function Initialize-VerificaApk {
+    if (-not ('VerificaApk' -as [type])) {
+        Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem
+        Add-Type -TypeDefinition $CodigoVerificaApk -ReferencedAssemblies System.IO.Compression, System.IO.Compression.FileSystem
+    }
+}
+
+function Get-CaminhosApk([string]$Nome) {
+    @((Invoke-Shell "pm path $Nome") -split "`n" | Where-Object { $_ -like 'package:/data/app/*' } | ForEach-Object { $_.Substring(8).Trim() })
+}
+
+function Invoke-Integridade {
+    Initialize-VerificaApk
+    $pacotes = if ($Pacote) { $Pacote } else { @(Get-Pacotes '') | Sort-Object }
+    $sistema = Get-Pacotes '-s'
+    $alvos = @(foreach ($p in $pacotes) { foreach ($c in (Get-CaminhosApk $p)) { [pscustomobject]@{ pacote = $p; caminho = $c } } })
+    Write-Host "Conferindo $($alvos.Count) arquivos de $(@($alvos.pacote | Sort-Object -Unique).Count) apps (copia cada APK para o PC, confere o CRC e apaga a cópia)..."
+    $local = Join-Path ([IO.Path]::GetTempPath()) ("tabletkit-{0}.apk" -f [guid]::NewGuid())
+    $ruins = [ordered]@{}; $i = 0
+    foreach ($a in $alvos) {
+        $i++
+        $saida = Invoke-Adb @('pull', $a.caminho, $local)
+        if (Test-Path $local) { $prob = [VerificaApk]::Verificar($local); Remove-Item $local -Force }
+        else { $prob = "não foi possível copiar ($($saida.Trim()))" }
+        if ($prob) { $ruins[$a.pacote] = "$(Split-Path $a.caminho -Leaf): $prob"; Write-Host "  FALHOU [$i/$($alvos.Count)] $($a.pacote) - $($ruins[$a.pacote])" -ForegroundColor Red }
+        elseif ($i % 25 -eq 0) { Write-Host "  ... $i/$($alvos.Count) conferidos" }
+    }
+    $pasta = Get-PastaAparelho
+    Add-Registro $pasta 'integridade.jsonl' @{ conferidos = $alvos.Count; corrompidos = $ruins }
+    if (-not $ruins.Count) { Write-Host 'OK Todos os APKs estão íntegros.' -ForegroundColor Green; return }
+    Write-Host "`n$($ruins.Count) app(s) com arquivo corrompido:" -ForegroundColor Yellow
+    $doSistema = @($ruins.Keys | Where-Object { $sistema.Contains($_) }); $baixados = @($ruins.Keys | Where-Object { -not $sistema.Contains($_) })
+    if ($doSistema.Count) {
+        Write-Host "`n  Apps do sistema (a atualização está corrompida). O kit volta para a versão de fábrica"
+        Write-Host '  sem apagar dados, e a Play Store baixa a atualização de novo:'
+        Write-Host "    .\TabletKit.ps1 reparar -Pacote $($doSistema -join ',') -Aplicar"
+    }
+    if ($baixados.Count) {
+        Write-Host "`n  Apps baixados da loja. Precisam ser reinstalados pela Play Store:"
+        foreach ($p in $baixados) { Write-Host "    - $p" }
+        Write-Host "  1) Abra a página do app na Play Store. Se houver 'Atualizar', atualize: troca o arquivo e mantém os dados."
+        Write-Host '  2) Se não houver, desinstale e instale de novo. ATENÇÃO: isso apaga os dados do app.'
+        Write-Host '     Faça backup antes (ex.: WhatsApp > Configurações > Conversas > Backup).'
+    }
+    Write-Host "`nATENÇÃO: vários arquivos corrompidos sem motivo aparente podem indicar desgaste da memória do aparelho." -ForegroundColor Yellow
+    Write-Host "   Rode 'integridade' de novo daqui a alguns dias: se surgirem corrompidos novos, leve o tablet à assistência."
+}
+
+function Invoke-Falhas {
+    $falhas = Get-Falhas
+    if (-not $falhas.Count) { Write-Host 'OK Nenhuma falha de app registrada.' -ForegroundColor Green; return }
+    Write-Host "$($falhas.Count) falhas registradas de $($falhas[0].data) a $($falhas[-1].data):`n"
+    $deCodigo = @()
+    foreach ($g in ($falhas | Group-Object pacote | Sort-Object Count -Descending)) {
+        $lista = @($g.Group)
+        $causa = ($lista | Where-Object { $_.causa } | Select-Object -Last 1).causa; if (-not $causa) { $causa = '?' }
+        Write-Host ("  {0,4}x  {1}  (última: {2})" -f $lista.Count, $g.Name, $lista[-1].data)
+        Write-Host "         causa: $causa"
+        if (@($lista | Where-Object { $_.codigo }).Count) { $deCodigo += $g.Name }
+    }
+    if ($deCodigo.Count) {
+        Write-Host "`nEsses apps não conseguem carregar o próprio código. A causa mais comum é o arquivo" -ForegroundColor Yellow
+        Write-Host 'de instalação (APK) corrompido. Para confirmar:' -ForegroundColor Yellow
+        Write-Host "  .\TabletKit.ps1 integridade -Pacote $($deCodigo -join ',')"
+    }
+}
+
+function Invoke-Reparar {
+    if (-not $Pacote) { throw 'Informe os apps: -Pacote app1,app2' }
+    $sistema = Get-Pacotes '-s'
+    Write-Host 'Reparo de apps com arquivo de instalação corrompido:'
+    $plano = @()
+    foreach ($p in $Pacote) {
+        if ($sistema.Contains($p) -and (Get-CaminhosApk $p).Count) { $plano += $p; Write-Host "  - ${p}: app do sistema atualizado -> volta para a versão de fábrica (mantém os dados)" }
+        elseif ($sistema.Contains($p)) { Write-Host "  -> ${p}: app do sistema sem atualização instalada. Não há o que desfazer." }
+        else { Write-Host "  -> ${p}: app baixado da loja. Reinstale pela Play Store (veja 'integridade')." }
+    }
+    if (-not $plano.Count) { return }
+    if (-not $Aplicar) { Write-Host "`nSIMULAÇÃO: nada foi alterado. Rode de novo com -Aplicar." -ForegroundColor Cyan; return }
+    $pasta = Get-PastaAparelho
+    foreach ($p in $plano) {
+        Invoke-Shell "am force-stop $p" | Out-Null
+        $s = Invoke-Shell "pm uninstall-system-updates $p"
+        $suc = $s -match '(?i)success'
+        Add-Registro $pasta 'acoes.jsonl' @{ acao = 'reparar'; pacote = $p; sucesso = [bool]$suc; saida = $s.Substring(0, [math]::Min(200, $s.Length)) }
+        if ($suc) { Write-Host "  OK $p" -ForegroundColor Green } else { Write-Host "  FALHOU $p ($s)" -ForegroundColor Red }
+    }
+    Write-Host "`nA Play Store vai baixar a atualização de novo, desta vez uma cópia íntegra."
+}
+
 # ----------------------------------------------------------------- main
 try {
     $Adb = Find-Adb
@@ -438,6 +604,9 @@ try {
         'reverter' { Invoke-Reverter }
         'otimizar' { Invoke-Otimizar }
         'restaurar-otimizacoes' { Invoke-RestaurarOtimizacoes }
+        'falhas' { Invoke-Falhas }
+        'integridade' { Invoke-Integridade }
+        'reparar' { Invoke-Reparar }
         'reiniciar' {
             # o Android grava ativar/desativar app com ~10 s de atraso; reiniciar antes perde a mudança
             Write-Host 'Esperando 20 s para o Android salvar as mudanças...'; Start-Sleep 20

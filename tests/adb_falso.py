@@ -4,6 +4,7 @@ import os
 import sys
 from pathlib import Path
 
+
 ESTADO = Path(os.environ["ADB_FALSO_ESTADO"])
 PACOTES_INICIAIS = {
     "android": True, "com.android.systemui": True, "com.android.settings": True,
@@ -12,8 +13,9 @@ PACOTES_INICIAIS = {
     "com.samsung.android.game.gos": True, "com.wssyncmldm": True,
     "com.samsung.android.bixby.agent": True, "com.sec.unknown.vendorapp": True,
     "com.whatsapp": True, "com.android.theme.icon.pebble": True,
+    "com.truecaller": True, "com.google.android.dialer": True,
 }
-USUARIO = {"com.whatsapp"}
+USUARIO = {"com.whatsapp", "com.truecaller"}
 
 
 def carregar():
@@ -49,7 +51,7 @@ def shell(cmd: str, e: dict) -> str:
         else:
             nomes = [n for n, ok in inst.items() if ok]
         return "\n".join(f"package:{n}" for n in nomes)
-    if cmd.startswith("pm uninstall"):
+    if cmd.startswith("pm uninstall "):
         e["instalado"][p[-1]] = False
         return "Success"
     if cmd.startswith("pm disable-user"):
@@ -78,15 +80,52 @@ def shell(cmd: str, e: dict) -> str:
         return ("Applications Memory Usage (in Kilobytes):\n\nTotal PSS by process:\n"
                 "    300,000K: com.android.systemui (pid 1000)\n    150,000K: com.facebook.services (pid 2000)\n\n"
                 "Total PSS by OOM adjustment:\n")
+    if cmd.startswith("dumpsys dropbox --print"):
+        return ("Drop box contents: 2 entries\n========================================\n"
+                "2026-11-08 17:10:01 data_app_crash (text, 900 bytes)\nProcess: com.truecaller\nPID: 7660\n\n"
+                "java.lang.RuntimeException: Unable to instantiate application\n"
+                "Caused by: java.lang.ClassNotFoundException: Didn't find class \"com.truecaller.TruecallerApp\"\n"
+                "========================================\n"
+                "2026-11-09 20:06:04 system_app_crash (text, 900 bytes)\nProcess: com.google.android.dialer\nPID: 4420\n\n"
+                "java.lang.NoClassDefFoundError: Failed resolution of: Lj$/util/concurrent/ConcurrentLinkedQueue;\n")
+    if cmd.startswith("pm path"):
+        pacote = p[-1]
+        if pacote in APKS and pacote not in e.get("reparados", []):
+            return f"package:/data/app/~~x==/{pacote}-y==/base.apk"
+        return f"package:/system/app/{pacote}/{pacote}.apk"
+    if cmd.startswith("pm uninstall-system-updates"):
+        e.setdefault("reparados", []).append(p[-1])
+        return "Success"
     if "am start -W" in cmd:
         return "Status: ok\nTotalTime: 850\nWaitTime: 900"
     return ""
+
+
+# apps com APK em /data/app: (corrompido?)
+APKS = {"com.truecaller": True, "com.google.android.dialer": True, "com.whatsapp": False}
+
+
+def escrever_apk(destino: str, corrompido: bool) -> None:
+    import zipfile
+    with zipfile.ZipFile(destino, "w", zipfile.ZIP_STORED) as z:
+        z.writestr("classes.dex", b"dex\n035\0" + b"A" * 5000)
+        z.writestr("AndroidManifest.xml", b"manifesto")
+    if corrompido:  # troca um byte do classes.dex: o CRC deixa de bater
+        dados = bytearray(Path(destino).read_bytes())
+        i = dados.index(b"AAAA")
+        dados[i] = ord("B")
+        Path(destino).write_bytes(bytes(dados))
 
 
 def main():
     a = sys.argv[1:]
     if a[:1] == ["-s"]:
         a = a[2:]
+    if a[:1] == ["pull"]:
+        pacote = a[1].split("/")[4].split("-")[0]   # /data/app/~~x==/PACOTE-y==/base.apk
+        escrever_apk(a[2], APKS[pacote])
+        print(f"{a[1]}: 1 file pulled")
+        return
     if a == ["devices"]:
         print("List of devices attached\nR9TESTE123\tdevice\n")
         return

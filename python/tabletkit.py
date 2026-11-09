@@ -12,6 +12,9 @@ Uso rápido:
     python tabletkit.py otimizar --aplicar # animações, cache e compilação
     python tabletkit.py restaurar-otimizacoes
     python tabletkit.py reiniciar
+    python tabletkit.py falhas             # apps que fecham sozinhos e por quê
+    python tabletkit.py integridade        # APKs corrompidos (confere o CRC no PC)
+    python tabletkit.py reparar --pacote APP --aplicar
 
 Tudo o que o kit faz é reversível: os apps são removidos só para o usuário 0
 (`pm uninstall --user 0`) e continuam guardados na partição do sistema.
@@ -598,6 +601,143 @@ def cmd_restaurar_otimizacoes(args) -> None:
     print("✔ Animações restauradas. (Cache limpo e compilação não precisam ser desfeitos.)")
 
 
+CAUSAS_DE_CODIGO = ("ClassNotFoundException", "NoClassDefFoundError", "VerifyError",
+                    "UnsatisfiedLinkError", "IncompatibleClassChangeError")
+
+
+def coletar_falhas(t: Tablet) -> list[dict]:
+    """Lê as falhas guardadas pelo Android (DropBox): data, app e causa."""
+    saida = t.shell("dumpsys dropbox --print data_app_crash; dumpsys dropbox --print system_app_crash", timeout=180)
+    falhas, atual = [], None
+    for linha in saida.splitlines():
+        m = re.match(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) (data|system)_app_crash", linha)
+        if m:
+            atual = {"data": m.group(1), "tipo": m.group(2), "pacote": None, "causa": None, "codigo": False}
+            falhas.append(atual)
+            continue
+        if not atual:
+            continue
+        if any(c in linha for c in CAUSAS_DE_CODIGO):   # vale também para as linhas "Caused by"
+            atual["codigo"] = True
+        if atual["pacote"] is None and linha.startswith("Process: "):
+            atual["pacote"] = linha.split()[1].split(":")[0]
+        elif atual["causa"] is None and re.match(r"^[\w.$]+(Exception|Error)\b", linha):
+            atual["causa"] = linha.strip()[:160]
+    return [f for f in falhas if f["pacote"]]
+
+
+def cmd_falhas(args) -> None:
+    t = Tablet(args.serial)
+    falhas = coletar_falhas(t)
+    if not falhas:
+        print("✔ Nenhuma falha de app registrada.")
+        return
+    por_app: dict[str, list[dict]] = {}
+    for f in falhas:
+        por_app.setdefault(f["pacote"], []).append(f)
+    print(f"{len(falhas)} falhas registradas de {falhas[0]['data']} a {falhas[-1]['data']}:\n")
+    de_codigo = []
+    for app, lista in sorted(por_app.items(), key=lambda x: -len(x[1])):
+        causa = next((f["causa"] for f in reversed(lista) if f["causa"]), "?")
+        print(f"  {len(lista):>4}x  {app}  (última: {lista[-1]['data']})")
+        print(f"         causa: {causa}")
+        if any(f["codigo"] for f in lista):
+            de_codigo.append(app)
+    if de_codigo:
+        print("\nEsses apps não conseguem carregar o próprio código. A causa mais comum é o arquivo")
+        print("de instalação (APK) corrompido. Para confirmar:")
+        print(f"  python tabletkit.py integridade --pacote {' '.join(de_codigo)}")
+
+
+def caminhos_apk(t: Tablet, pacote: str) -> list[str]:
+    """Arquivos APK instalados em /data/app (apps baixados e atualizações de apps do sistema)."""
+    return [l.split(":", 1)[1].strip() for l in t.shell(f"pm path {pacote}").splitlines()
+            if l.startswith("package:/data/app/")]
+
+
+def apk_integro(caminho_local: str) -> str | None:
+    """None se o APK está íntegro; senão, o problema encontrado."""
+    import zipfile
+    try:
+        with zipfile.ZipFile(caminho_local) as z:
+            ruim = z.testzip()
+            return f"CRC inválido em {ruim}" if ruim else None
+    except (zipfile.BadZipFile, OSError, EOFError, ValueError) as e:
+        return f"{type(e).__name__}: {e}"[:150]
+
+
+def cmd_integridade(args) -> None:
+    import tempfile
+    t = Tablet(args.serial)
+    pacotes = args.pacote or sorted(t.pacotes())
+    sistema = t.pacotes("-s")
+    alvos = [(p, c) for p in pacotes for c in caminhos_apk(t, p)]
+    print(f"Conferindo {len(alvos)} arquivos de {len({p for p, _ in alvos})} apps "
+          "(copia cada APK para o PC, confere o CRC e apaga a cópia)...")
+    ruins: dict[str, str] = {}
+    with tempfile.TemporaryDirectory() as tmp:
+        local = os.path.join(tmp, "app.apk")
+        for i, (p, caminho) in enumerate(alvos, 1):
+            rc, saida = t._rodar(["pull", caminho, local], timeout=900)
+            problema = apk_integro(local) if rc == 0 else f"não foi possível copiar ({saida.strip()[:80]})"
+            if problema:
+                ruins[p] = f"{os.path.basename(caminho)}: {problema}"
+                print(f"  ✘ [{i}/{len(alvos)}] {p} — {ruins[p]}")
+            elif i % 25 == 0:
+                print(f"  … {i}/{len(alvos)} conferidos")
+            if os.path.exists(local):
+                os.remove(local)
+    pasta = pasta_do_aparelho(t)
+    registrar(pasta, "integridade.jsonl", {"conferidos": len(alvos), "corrompidos": ruins})
+    if not ruins:
+        print("✔ Todos os APKs estão íntegros.")
+        return
+    print(f"\n{len(ruins)} app(s) com arquivo corrompido:")
+    do_sistema = [p for p in ruins if p in sistema]
+    baixados = [p for p in ruins if p not in sistema]
+    if do_sistema:
+        print("\n  Apps do sistema (a atualização está corrompida). O kit volta para a versão de fábrica")
+        print("  sem apagar dados, e a Play Store baixa a atualização de novo:")
+        print(f"    python tabletkit.py reparar --pacote {' '.join(do_sistema)} --aplicar")
+    if baixados:
+        print("\n  Apps baixados da loja. Precisam ser reinstalados pela Play Store:")
+        for p in baixados:
+            print(f"    • {p}")
+        print("  1) Abra a página do app na Play Store. Se houver 'Atualizar', atualize: troca o arquivo e mantém os dados.")
+        print("  2) Se não houver, desinstale e instale de novo. ATENÇÃO: isso apaga os dados do app.")
+        print("     Faça backup antes (ex.: WhatsApp > Configurações > Conversas > Backup).")
+    print("\n⚠️ Vários arquivos corrompidos sem motivo aparente podem indicar desgaste da memória do aparelho.")
+    print("   Rode 'integridade' de novo daqui a alguns dias: se surgirem corrompidos novos, leve o tablet à assistência.")
+
+
+def cmd_reparar(args) -> None:
+    t = Tablet(args.serial)
+    sistema = t.pacotes("-s")
+    print("Reparo de apps com arquivo de instalação corrompido:")
+    plano = []
+    for p in args.pacote:
+        if p in sistema and caminhos_apk(t, p):
+            plano.append(p)
+            print(f"  • {p}: app do sistema atualizado → volta para a versão de fábrica (mantém os dados)")
+        elif p in sistema:
+            print(f"  ↷ {p}: app do sistema sem atualização instalada. Não há o que desfazer.")
+        else:
+            print(f"  ↷ {p}: app baixado da loja. Reinstale pela Play Store (veja 'integridade').")
+    if not plano:
+        return
+    if not args.aplicar:
+        print("\nSIMULAÇÃO: nada foi alterado. Rode de novo com --aplicar.")
+        return
+    pasta = pasta_do_aparelho(t)
+    for p in plano:
+        t.shell(f"am force-stop {p}")
+        saida = t.shell(f"pm uninstall-system-updates {p}", timeout=300)
+        sucesso = "success" in saida.lower()
+        registrar(pasta, "acoes.jsonl", {"acao": "reparar", "pacote": p, "sucesso": sucesso, "saida": saida[:200]})
+        print(f"  {'✔' if sucesso else '✘'} {p}" + ("" if sucesso else f"  ({saida[:120]})"))
+    print("\nA Play Store vai baixar a atualização de novo, desta vez uma cópia íntegra.")
+
+
 ESPERA_GRAVAR_S = 20  # o Android grava ativar/desativar app com ~10 s de atraso
 
 
@@ -640,11 +780,18 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--aplicar", action="store_true")
     sub.add_parser("restaurar-otimizacoes", help="volta as animações ao original")
     sub.add_parser("reiniciar", help="reinicia o tablet")
+    sub.add_parser("falhas", help="lista apps que estão travando/fechando sozinhos e a causa")
+    s = sub.add_parser("integridade", help="confere se os arquivos dos apps (APK) estão corrompidos")
+    s.add_argument("--pacote", nargs="+", help="conferir só estes apps (padrão: todos)")
+    s = sub.add_parser("reparar", help="volta app do sistema com atualização corrompida para a versão de fábrica")
+    s.add_argument("--pacote", nargs="+", required=True)
+    s.add_argument("--aplicar", action="store_true")
 
     args = ap.parse_args(argv)
     comandos = {"verificar": cmd_verificar, "varrer": cmd_varrer, "medir": cmd_medir,
                 "remover": cmd_remover, "reverter": cmd_reverter, "otimizar": cmd_otimizar,
-                "restaurar-otimizacoes": cmd_restaurar_otimizacoes, "reiniciar": cmd_reiniciar}
+                "restaurar-otimizacoes": cmd_restaurar_otimizacoes, "reiniciar": cmd_reiniciar,
+                "falhas": cmd_falhas, "integridade": cmd_integridade, "reparar": cmd_reparar}
     try:
         comandos[args.comando](args)
     except ErroKit as e:

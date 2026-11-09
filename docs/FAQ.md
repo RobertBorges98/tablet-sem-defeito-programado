@@ -18,6 +18,17 @@ O GOS limita CPU e GPU em jogos e apps pesados. Sem ele o desempenho melhora, ma
 ### Devo bloquear as atualizações do sistema?
 Normalmente não. Bloquear (`--categoria atualizacao --risco cuidado`) evita que uma versão nova pese demais num aparelho antigo, mas também corta as **correções de segurança**. Só faça isso se o tablet já não recebe atualizações de segurança ou se é usado só para coisas sem dados sensíveis.
 
+### Aparecem janelas de "o app parou" / "o app continua apresentando falhas"
+1. Rode `falhas`. O kit lista quais apps fecharam sozinhos, quantas vezes e a causa. Ele lê o registro de falhas que o próprio Android guarda.
+2. Se a causa for `ClassNotFoundException`, `NoClassDefFoundError` ou `VerifyError`, o app não consegue carregar o próprio código. Rode `integridade`: ele copia o arquivo de instalação (APK) de cada app para o PC e confere se está corrompido. O `unzip` do Android não confere isso direito, por isso a cópia.
+3. Para consertar:
+   - **App do sistema** (ex.: Telefone do Google): `reparar --pacote APP --aplicar` volta para a versão de fábrica sem apagar dados. Depois a Play Store baixa a atualização de novo.
+   - **App baixado da loja:** se a Play Store oferecer "Atualizar", atualize, porque isso troca o arquivo e mantém os dados. Senão, desinstale e instale de novo. Isso **apaga os dados do app**, então faça backup antes.
+
+Recompilar o app (`cmd package compile`) não resolve: o arquivo de origem está danificado. No Android 13, o ADB nem tem permissão para apagar a compilação.
+
+Se vários apps aparecerem corrompidos sem motivo, rode `integridade` de novo depois de alguns dias. Se surgirem corrompidos novos, a memória do aparelho pode estar com defeito.
+
 ### Desativei um app, reiniciei e ele voltou
 O Android leva uns 10 segundos para gravar que um app foi ativado ou desativado. Se o tablet reiniciar antes disso, a mudança se perde. Use o comando `reiniciar` do kit, que espera 20 segundos antes de reiniciar. Se usar `adb reboot` direto, espere um pouco antes.
 
