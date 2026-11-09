@@ -1,0 +1,13 @@
+# Relatórios contêm o serial do aparelho e a lista de apps — não publicar
+relatorios/
+
+# ADB baixado pelo scripts/instalar-adb.ps1
+platform-tools/
+
+__pycache__/
+*.pyc
+.venv/
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store

@@ -1,0 +1,45 @@
+name: testes
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  python:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.8", "3.13"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m unittest discover tests -v
+
+  powershell:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sintaxe dos scripts
+        shell: powershell
+        run: |
+          $erro = $false
+          foreach ($f in Get-ChildItem -Recurse -Filter *.ps1) {
+            $e = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$e) | Out-Null
+            if ($e) { $erro = $true; $e | ForEach-Object { Write-Host "$($f.Name): $_" } }
+          }
+          if ($erro) { exit 1 }
+      - name: Kit contra ADB falso
+        shell: powershell
+        run: |
+          Set-Content adb-falso.bat "@python `"$PWD\tests\adb_falso.py`" %*" -Encoding ascii
+          $env:TABLETKIT_ADB = "$PWD\adb-falso.bat"
+          $env:ADB_FALSO_ESTADO = "$env:RUNNER_TEMP\estado.json"
+          $k = '.\powershell\TabletKit.ps1'
+          foreach ($a in @(@('varrer'), @('remover','-Aplicar','-Sim'), @('reverter','-Tudo'))) {
+            powershell -NoProfile -ExecutionPolicy Bypass -File $k @a
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          }
