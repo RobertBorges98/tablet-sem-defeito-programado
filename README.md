@@ -64,6 +64,9 @@ Para instalar o ADB:
 | Medir depois (reinicie antes) | `... medir --rotulo depois` | `... medir -Rotulo depois` |
 | **Desfazer tudo** | `... reverter --tudo` | `... reverter -Tudo` |
 | Voltar as animações | `... restaurar-otimizacoes` | `... restaurar-otimizacoes` |
+| Reiniciar o tablet | `... reiniciar` | `... reiniciar` |
+
+> No Windows, o `instalar-adb.ps1` guarda o ADB em `platform-tools\`, dentro do projeto, sem mexer no PATH. O kit já sabe onde ele está. Para usar o ADB direto, digite `.\platform-tools\adb.exe` (por exemplo, `.\platform-tools\adb.exe devices`), e não só `adb`.
 
 > Se o PowerShell bloquear o script, rode antes: `Set-ExecutionPolicy -Scope Process Bypass`.
 

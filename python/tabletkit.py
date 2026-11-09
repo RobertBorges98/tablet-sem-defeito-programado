@@ -11,6 +11,7 @@ Uso rápido:
     python tabletkit.py reverter --tudo    # desfaz tudo que o kit removeu
     python tabletkit.py otimizar --aplicar # animações, cache e compilação
     python tabletkit.py restaurar-otimizacoes
+    python tabletkit.py reiniciar
 
 Tudo o que o kit faz é reversível: os apps são removidos só para o usuário 0
 (`pm uninstall --user 0`) e continuam guardados na partição do sistema.
@@ -508,7 +509,7 @@ def cmd_remover(args) -> None:
         registrar(pasta, "acoes.jsonl", {"acao": "remover", "modo": args.modo, "pacote": p["pacote"],
                                          "sucesso": sucesso, "saida": saida[:200]})
         print(f"  {'✔' if sucesso else '✘'} {p['pacote']}" + ("" if sucesso else f"  ({saida[:120]})"))
-    print(f"\n{ok}/{len(alvo)} concluídos. Reinicie o tablet (adb reboot) e use-o por alguns dias.")
+    print(f"\n{ok}/{len(alvo)} concluídos. Reinicie (python tabletkit.py reiniciar) e use por alguns dias.")
     print("Algo parou de funcionar? python tabletkit.py reverter --pacote NOME  (ou --tudo)")
 
 
@@ -578,7 +579,7 @@ def cmd_otimizar(args) -> None:
         t.shell("cmd package bg-dexopt-job", timeout=3600)
         print("  ✔ compilação")
     registrar(pasta, "otimizacoes.jsonl", {"acao": "aplicado", "animacao": v})
-    print("Pronto. Reinicie o tablet: adb reboot")
+    print("Pronto. Reinicie o tablet: python tabletkit.py reiniciar")
 
 
 def cmd_restaurar_otimizacoes(args) -> None:
@@ -592,6 +593,12 @@ def cmd_restaurar_otimizacoes(args) -> None:
             valor = "1"
         t.shell(f"settings put global {chave} {valor}")
     print("✔ Animações restauradas. (Cache limpo e compilação não precisam ser desfeitos.)")
+
+
+def cmd_reiniciar(args) -> None:
+    t = Tablet(args.serial)
+    t._rodar(["reboot"])
+    print("✔ Reiniciando o tablet. Espere ele ligar (e uns 2 min) antes de medir de novo.")
 
 
 # --------------------------------------------------------------------------- #
@@ -623,11 +630,12 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--sem-compilar", action="store_true")
     s.add_argument("--aplicar", action="store_true")
     sub.add_parser("restaurar-otimizacoes", help="volta as animações ao original")
+    sub.add_parser("reiniciar", help="reinicia o tablet")
 
     args = ap.parse_args(argv)
     comandos = {"verificar": cmd_verificar, "varrer": cmd_varrer, "medir": cmd_medir,
                 "remover": cmd_remover, "reverter": cmd_reverter, "otimizar": cmd_otimizar,
-                "restaurar-otimizacoes": cmd_restaurar_otimizacoes}
+                "restaurar-otimizacoes": cmd_restaurar_otimizacoes, "reiniciar": cmd_reiniciar}
     try:
         comandos[args.comando](args)
     except ErroKit as e:

@@ -22,7 +22,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0, Mandatory = $true)]
-    [ValidateSet('verificar', 'varrer', 'medir', 'remover', 'reverter', 'otimizar', 'restaurar-otimizacoes')]
+    [ValidateSet('verificar', 'varrer', 'medir', 'remover', 'reverter', 'otimizar', 'restaurar-otimizacoes', 'reiniciar')]
     [string]$Acao,
     [string]$Serial,
     [ValidateSet('seguro', 'cuidado')][string]$Risco = 'seguro',
@@ -363,7 +363,7 @@ function Invoke-Remover {
         Add-Registro $pasta 'acoes.jsonl' @{ acao = 'remover'; modo = $Modo; pacote = $p.pacote; sucesso = [bool]$suc; saida = $s.Substring(0, [math]::Min(200, $s.Length)) }
         if ($suc) { Write-Host "  OK $($p.pacote)" -ForegroundColor Green } else { Write-Host "  FALHOU $($p.pacote) ($s)" -ForegroundColor Red }
     }
-    Write-Host "`n$ok/$($alvo.Count) concluídos. Reinicie o tablet (adb reboot) e use-o por alguns dias."
+    Write-Host "`n$ok/$($alvo.Count) concluídos. Reinicie (.\TabletKit.ps1 reiniciar) e use por alguns dias."
     Write-Host 'Algo parou de funcionar? .\TabletKit.ps1 reverter -Pacote NOME  (ou -Tudo)'
 }
 
@@ -407,7 +407,7 @@ function Invoke-Otimizar {
     Invoke-Shell 'pm trim-caches 999G' | Out-Null; Write-Host '  OK cache'
     if (-not $SemCompilar) { Write-Host '  ... compilando (não desconecte o cabo)'; Invoke-Shell 'cmd package bg-dexopt-job' | Out-Null; Write-Host '  OK compilação' }
     Add-Registro $pasta 'otimizacoes.jsonl' @{ acao = 'aplicado'; animacao = $Animacao }
-    Write-Host 'Pronto. Reinicie o tablet: adb reboot'
+    Write-Host 'Pronto. Reinicie o tablet: .\TabletKit.ps1 reiniciar'
 }
 
 function Invoke-RestaurarOtimizacoes {
@@ -433,6 +433,7 @@ try {
         'reverter' { Invoke-Reverter }
         'otimizar' { Invoke-Otimizar }
         'restaurar-otimizacoes' { Invoke-RestaurarOtimizacoes }
+        'reiniciar' { Invoke-Adb @('reboot') | Out-Null; Write-Host 'OK Reiniciando o tablet. Espere ele ligar (e uns 2 min) antes de medir de novo.' -ForegroundColor Green }
     }
 } catch {
     Write-Host "ERRO: $($_.Exception.Message)" -ForegroundColor Red
