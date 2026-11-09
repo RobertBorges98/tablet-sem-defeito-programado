@@ -27,5 +27,5 @@ O jeito mais útil de ajudar é **ampliar o banco de pacotes** (`dados/pacotes.j
 ## Código
 
 - `python/tabletkit.py` e `powershell/TabletKit.ps1` devem ter **os mesmos comandos e o mesmo comportamento**. Se mudar um, mude o outro.
-- O Python usa só a biblioteca padrão (3.8+).
+- O Python usa só a biblioteca padrão (3.10+).
 - Toda ação que altera o tablet precisa: simular por padrão, pedir confirmação, registrar em `acoes.jsonl` e poder ser revertida.

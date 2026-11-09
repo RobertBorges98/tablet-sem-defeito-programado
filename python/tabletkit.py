@@ -14,7 +14,7 @@ Uso rápido:
 
 Tudo o que o kit faz é reversível: os apps são removidos só para o usuário 0
 (`pm uninstall --user 0`) e continuam guardados na partição do sistema.
-Só usa a biblioteca padrão do Python 3.8+.
+Só usa a biblioteca padrão do Python 3.10+.
 """
 from __future__ import annotations
 
