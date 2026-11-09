@@ -61,6 +61,7 @@ class TestComAdbFalso(unittest.TestCase):
         os.environ["TABLETKIT_ADB"] = str(adb)
         os.environ["ADB_FALSO_ESTADO"] = str(tmp / "estado.json")
         self._rel = tabletkit.RELATORIOS
+        tabletkit.ESPERA_GRAVAR_S = 0
         tabletkit.RELATORIOS = tmp / "relatorios"
 
     def tearDown(self):

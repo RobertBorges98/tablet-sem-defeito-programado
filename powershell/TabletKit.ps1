@@ -438,7 +438,10 @@ try {
         'reverter' { Invoke-Reverter }
         'otimizar' { Invoke-Otimizar }
         'restaurar-otimizacoes' { Invoke-RestaurarOtimizacoes }
-        'reiniciar' { Invoke-Adb @('reboot') | Out-Null; Write-Host 'OK Reiniciando o tablet. Espere ele ligar (e uns 2 min) antes de medir de novo.' -ForegroundColor Green }
+        'reiniciar' {
+            # o Android grava ativar/desativar app com ~10 s de atraso; reiniciar antes perde a mudança
+            Write-Host 'Esperando 20 s para o Android salvar as mudanças...'; Start-Sleep 20
+            Invoke-Adb @('reboot') | Out-Null; Write-Host 'OK Reiniciando o tablet. Espere ele ligar (e uns 2 min) antes de medir de novo.' -ForegroundColor Green }
     }
 } catch {
     Write-Host "ERRO: $($_.Exception.Message)" -ForegroundColor Red

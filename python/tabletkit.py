@@ -598,8 +598,14 @@ def cmd_restaurar_otimizacoes(args) -> None:
     print("✔ Animações restauradas. (Cache limpo e compilação não precisam ser desfeitos.)")
 
 
+ESPERA_GRAVAR_S = 20  # o Android grava ativar/desativar app com ~10 s de atraso
+
+
 def cmd_reiniciar(args) -> None:
+    import time
     t = Tablet(args.serial)
+    print(f"Esperando {ESPERA_GRAVAR_S} s para o Android salvar as mudanças...")
+    time.sleep(ESPERA_GRAVAR_S)
     t._rodar(["reboot"])
     print("✔ Reiniciando o tablet. Espere ele ligar (e uns 2 min) antes de medir de novo.")
 

@@ -18,6 +18,9 @@ O GOS limita CPU e GPU em jogos e apps pesados. Sem ele o desempenho melhora, ma
 ### Devo bloquear as atualizações do sistema?
 Normalmente não. Bloquear (`--categoria atualizacao --risco cuidado`) evita que uma versão nova pese demais num aparelho antigo, mas também corta as **correções de segurança**. Só faça isso se o tablet já não recebe atualizações de segurança ou se é usado só para coisas sem dados sensíveis.
 
+### Desativei um app, reiniciei e ele voltou
+O Android leva uns 10 segundos para gravar que um app foi ativado ou desativado. Se o tablet reiniciar antes disso, a mudança se perde. Use o comando `reiniciar` do kit, que espera 20 segundos antes de reiniciar. Se usar `adb reboot` direto, espere um pouco antes.
+
 ### Animações em 0 ou 0.5?
 Com `0.5` o tablet parece mais rápido e ainda dá para ver as transições. Com `0` fica mais rápido ainda, mas alguns apps se comportam de forma estranha. O padrão do kit é `0.5`.
 
