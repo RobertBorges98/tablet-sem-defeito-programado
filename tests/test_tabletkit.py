@@ -184,7 +184,7 @@ class TestSkill(unittest.TestCase):
         m = re.match(r"---\r?\n(.*?)\r?\n---\r?\n", texto, re.S)
         self.assertTrue(m, "SKILL.md precisa começar com frontmatter YAML")
         campos = dict(linha.split(":", 1) for linha in m.group(1).splitlines() if ":" in linha)
-        self.assertEqual(campos.get("name", "").strip(), "tablet-sem-obsolescencia")
+        self.assertEqual(campos.get("name", "").strip(), "tablet-sem-defeito-programado")
         descricao = campos.get("description", "").strip()
         self.assertTrue(20 < len(descricao) <= 1024, "description deve ter até 1024 caracteres")
 

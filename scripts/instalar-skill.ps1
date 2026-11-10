@@ -15,7 +15,7 @@
 param([switch]$Copiar, [switch]$Desinstalar)
 $ErrorActionPreference = 'Stop'
 $Raiz = Split-Path -Parent $PSScriptRoot
-$Nome = 'tablet-sem-obsolescencia'
+$Nome = 'tablet-sem-defeito-programado'
 $Pasta = Join-Path $HOME ".claude\skills"
 $Destino = Join-Path $Pasta $Nome
 

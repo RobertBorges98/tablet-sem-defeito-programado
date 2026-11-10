@@ -1,4 +1,4 @@
-"""Gera dist/tablet-sem-obsolescencia.zip para enviar como skill ao claude.ai
+"""Gera dist/tablet-sem-defeito-programado.zip para enviar como skill ao claude.ai
 (Configurações > Capacidades > Skills > Enviar skill) ou a outra plataforma que aceite skills em .zip.
 
 Uso: python scripts/empacotar-skill.py
@@ -7,7 +7,7 @@ import zipfile
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
-NOME = "tablet-sem-obsolescencia"
+NOME = "tablet-sem-defeito-programado"
 INCLUIR = ["SKILL.md", "AGENTS.md", "README.md", "LICENSE", "CONTRIBUTING.md",
            "dados", "docs", "python", "powershell", "scripts"]
 IGNORAR = {"__pycache__", ".pyc"}

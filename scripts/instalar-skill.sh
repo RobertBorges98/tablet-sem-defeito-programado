@@ -4,7 +4,7 @@
 #      sh scripts/instalar-skill.sh --desinstalar
 set -e
 RAIZ="$(cd "$(dirname "$0")/.." && pwd)"
-DESTINO="$HOME/.claude/skills/tablet-sem-obsolescencia"
+DESTINO="$HOME/.claude/skills/tablet-sem-defeito-programado"
 
 if [ "$1" = "--desinstalar" ]; then
     rm -rf "$DESTINO" && echo "Skill removida de $DESTINO"

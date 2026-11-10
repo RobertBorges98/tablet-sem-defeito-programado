@@ -40,8 +40,8 @@ Kit para **varrer um tablet Android e tirar o que deixa ele lento sem motivo**: 
 
 ### 2. Baixe o kit e o ADB
 ```bash
-git clone https://github.com/RobertBorges98/tablet-sem-obsolescencia.git
-cd tablet-sem-obsolescencia
+git clone https://github.com/RobertBorges98/tablet-sem-defeito-programado.git
+cd tablet-sem-defeito-programado
 ```
 Para instalar o ADB:
 - **Windows:** `powershell -ExecutionPolicy Bypass -File scripts\instalar-adb.ps1`. O script baixa do Google e confere a assinatura digital.

@@ -1,5 +1,5 @@
 ---
-name: tablet-sem-obsolescencia
+name: tablet-sem-defeito-programado
 description: Varre e otimiza tablets e celulares Android via ADB, sem root e de forma reversível. Remove bloatware, propaganda, telemetria e limitadores de desempenho, diagnostica apps que fecham sozinhos ("o app parou"), encontra APKs corrompidos e mede o antes e o depois. Use quando a pessoa pedir para deixar um tablet/celular Android mais rápido, tirar apps de fábrica, "obsolescência programada", consertar pop-ups de falha de app, ou conectar um aparelho por ADB.
 ---
 

@@ -7,8 +7,8 @@ O repositório funciona como **skill**: um roteiro ([SKILL.md](../SKILL.md)) que
 Instale como skill pessoal. Ela fica disponível em qualquer pasta:
 
 ```bash
-git clone https://github.com/RobertBorges98/tablet-sem-obsolescencia.git
-cd tablet-sem-obsolescencia
+git clone https://github.com/RobertBorges98/tablet-sem-defeito-programado.git
+cd tablet-sem-defeito-programado
 ```
 - **Windows:** `powershell -ExecutionPolicy Bypass -File scripts\instalar-skill.ps1`
 - **Linux/Mac:** `sh scripts/instalar-skill.sh`
@@ -19,7 +19,7 @@ Também funciona sem instalar: abra o Claude Code dentro da pasta do repositóri
 
 ## claude.ai (site ou app)
 
-1. Rode `python scripts/empacotar-skill.py`. Ele gera `dist/tablet-sem-obsolescencia.zip`.
+1. Rode `python scripts/empacotar-skill.py`. Ele gera `dist/tablet-sem-defeito-programado.zip`.
 2. No claude.ai, envie o .zip em **Configurações > Capacidades > Skills**.
 
 No site, o Claude não acessa o cabo USB do seu computador. Ele vai orientar e interpretar o que você colar. Para que ele rode os comandos sozinho, use o Claude Code.
