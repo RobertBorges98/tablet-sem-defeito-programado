@@ -4,6 +4,9 @@ relatorios/
 # ADB baixado pelo scripts/instalar-adb.ps1
 platform-tools/
 
+# Pacote da skill gerado por scripts/empacotar-skill.py
+dist/
+
 __pycache__/
 *.pyc
 .venv/

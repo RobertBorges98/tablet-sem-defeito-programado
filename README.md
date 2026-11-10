@@ -8,6 +8,7 @@ Kit para **varrer um tablet Android e tirar o que deixa ele lento sem motivo**: 
 - **Não remove o que é essencial.** A Play Store, os serviços do Google, a tela inicial e outros apps essenciais ficam bloqueados.
 - **Funciona em qualquer marca.** O kit detecta o modelo e classifica os apps com um [banco de pacotes](dados/pacotes.json) que a comunidade pode ampliar.
 - **Duas versões iguais:** Python (Windows, Linux, Mac) e PowerShell (Windows, sem instalar nada).
+- **Funciona como skill de IA.** Instale no Claude Code, envie ao claude.ai ou abra a pasta no Codex, no Cursor ou no Copilot, e o assistente faz a varredura, propõe o plano e aplica as mudanças com a sua confirmação. Veja [Usar com IA](docs/usar-com-ia.md).
 
 > Inspirado na ideia do repositório [cavaleiro-ai/Tirando-defeito-programado-dos-tablets](https://github.com/cavaleiro-ai/Tirando-defeito-programado-dos-tablets). Este projeto é uma reescrita independente, focada só em limpeza e desempenho (sem emuladores).
 

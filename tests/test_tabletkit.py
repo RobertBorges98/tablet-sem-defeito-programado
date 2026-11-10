@@ -178,5 +178,24 @@ class TestComAdbFalso(unittest.TestCase):
         self.assertIn("medição 'antes'", saida)
 
 
+class TestSkill(unittest.TestCase):
+    def test_frontmatter_do_skill(self):
+        texto = (RAIZ / "SKILL.md").read_text(encoding="utf-8")
+        m = re.match(r"---\r?\n(.*?)\r?\n---\r?\n", texto, re.S)
+        self.assertTrue(m, "SKILL.md precisa começar com frontmatter YAML")
+        campos = dict(linha.split(":", 1) for linha in m.group(1).splitlines() if ":" in linha)
+        self.assertEqual(campos.get("name", "").strip(), "tablet-sem-obsolescencia")
+        descricao = campos.get("description", "").strip()
+        self.assertTrue(20 < len(descricao) <= 1024, "description deve ter até 1024 caracteres")
+
+    def test_comandos_citados_existem(self):
+        texto = (RAIZ / "SKILL.md").read_text(encoding="utf-8")
+        ajuda = io.StringIO()
+        with redirect_stdout(ajuda), self.assertRaises(SystemExit):
+            tabletkit.main(["--help"])
+        for cmd in re.findall(r"tabletkit\.py (?:--serial \S+ )?([a-z-]+)", texto):
+            self.assertIn(cmd, ajuda.getvalue(), f"SKILL.md cita comando inexistente: {cmd}")
+
+
 if __name__ == "__main__":
     unittest.main()
